@@ -28,11 +28,11 @@ imageDirs = [
     /** imageDirs **/
 ]
 
-// folders in which asciidoc will find other resources with corrosponding target directory
+// folders in which asciidoc will find other resources with corresponding target directory
 // works with generateHTML (target is prepended with build/html5/)
 // and generateSite (target ist prepended with build/microsite/output/)
 resourceDirs = [
-    //[source: 'some/ohter/resource', target: 'target/directory']
+    //[source: 'some/other/resource', target: 'target/directory']
 	/** resourceDirs **/
 ]
 
@@ -129,7 +129,7 @@ microsite.with {
         });
     </script>
     """
-    
+
 
     /** end:microsite **/
 }
@@ -139,7 +139,7 @@ jbake.with {
     // possibility to configure additional asciidoctorj plugins used by jbake
     plugins = [ ]
 
-    // possibiltiy to configure additional asciidoctor attributes passed to the jbake task
+    // possibility to configure additional asciidoctor attributes passed to the jbake task
     asciidoctorAttributes = [ ]
 
     /** end:jbake **/
@@ -175,7 +175,7 @@ changelog.with {
 //*****************************************************************************************
 
 //tag::confluenceConfig[]
-//Configureation for publishToConfluence
+//Configuration for publishToConfluence
 
 confluence = [:]
 
@@ -240,7 +240,7 @@ confluence.with {
     pageVersionComment = ''
 
     /*
-    WARNING: It is strongly recommended to store credentials securely instead of commiting plain text values to your git repository!!!
+    WARNING: It is strongly recommended to store credentials securely instead of committing plain text values to your git repository!!!
 
     Tool expects credentials that belong to an account which has the right permissions to to create and edit confluence pages in the given space.
     Credentials can be used in a form of:
@@ -326,7 +326,7 @@ jira.with {
     rateLimit = 10
 
     /*
-    WARNING: It is strongly recommended to store credentials securely instead of commiting plain text values to your git repository!!!
+    WARNING: It is strongly recommended to store credentials securely instead of committing plain text values to your git repository!!!
 
     Tool expects credentials that belong to an account which has the right permissions to read the JIRA issues for a given project.
     Credentials can be used in a form of:
@@ -364,7 +364,7 @@ jira.with {
     List of requests to Jira API:
     These are basically JQL expressions bundled with a filename in which results will be saved.
     User can configure custom fields IDs and name those for column header,
-    i.e. customfield_10026:'Story Points' for Jira instance that has custom field with that name and will be saved in a coloumn named "Story Points"
+    i.e. customfield_10026:'Story Points' for Jira instance that has custom field with that name and will be saved in a column named "Story Points"
     */
     exports = [
         [

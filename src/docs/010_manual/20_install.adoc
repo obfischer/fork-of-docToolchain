@@ -456,7 +456,7 @@ TIP: Blog-Posts: https://rdmueller.github.io/enterprise-edition/[Behind the grea
 
 If there is a new https://github.com/docToolchain/docToolchain/releases[docToolchain release] you wish to use, do the following:
 
-. Open the docToolchain wrapper script (`dtcw`, respective `dtcw.ps1` and `dtcw.bat`) in your favourite text editor and look for the line with `DTC_VERSION` which should be located near the start of the file:
+. Open the docToolchain wrapper script (`dtcw`, respective `dtcw.ps1` and `dtcw.bat`) in your favorite text editor and look for the line with `DTC_VERSION` which should be located near the start of the file:
 [source, bash]
 ----
 # See https://github.com/docToolchain/docToolchain/releases for available versions.

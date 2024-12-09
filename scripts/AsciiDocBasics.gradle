@@ -167,7 +167,7 @@ asciidoctorj {
     version = '2.5.7'
     modules {
         diagram.use()
-        diagram.version '2.2.7'
+        diagram.version '2.3.1'
     }
     fatalWarnings ~/image to embed not found or not readable/
 

@@ -1,6 +1,9 @@
-
-
 outputPath = 'build'
+
+// If you want to use the Antora integration, set this to true.
+// This requires your project to be setup as Antora module.
+// You can use `downloadTemplate` task to bootstrap your project.
+//useAntoraIntegration = false
 
 // Path where the docToolchain will search for the input files.
 // This path is appended to the docDir property specified in gradle.properties
@@ -20,15 +23,16 @@ inputFiles = [
 //these will be copied as resources to ./images
 imageDirs = [
     'images/.',
-    '020_tutorial/images/.'
-	/** imageDirs **/
+    '020_tutorial/images/.',
+    '020_tutorial/040_microsite/images/.'
+    /** imageDirs **/
 ]
 
-// folders in which asciidoc will find other resources with corrosponding target directory
+// folders in which asciidoc will find other resources with corresponding target directory
 // works with generateHTML (target is prepended with build/html5/)
 // and generateSite (target ist prepended with build/microsite/output/)
 resourceDirs = [
-    //[source: 'some/ohter/resource', target: 'target/directory']
+    //[source: 'some/other/resource', target: 'target/directory']
 	/** resourceDirs **/
 ]
 
@@ -65,8 +69,6 @@ microsite.with {
     title='Microsite'
     // used in the template for absolute uris
     host='https://localhost'
-    // configure a port on which your preview server will run
-    previewPort = 8042
 
     //project theme
     //site folder relative to the docs folder
@@ -95,16 +97,39 @@ microsite.with {
     // Slack Channel
     footerSlack = ''
     // general text for the footer
-    footerText = '<script defer data-domain="doctoolchain.org" src="https://plausible.io/js/script.js"></script><small class="text-white">built with <a href="https://doctoolchain.org">docToolchain</a> and <a href="https://jbake.org">jBake</a> <br /> theme: <a href="https://www.docsy.dev/">docsy</a></small>'
+    footerText = '<small class="text-white">built with <a href="https://doctoolchain.org">docToolchain</a> and <a href="https://jbake.org">jBake</a> <br /> theme: <a href="https://www.docsy.dev/">docsy</a></small>'
     // site title if no other title is given
     title = 'docToolchain'
     //
     // the url to create an issue in github (set to 'null' to hide the "Create an issue" link)
     issueUrl = 'https://github.com/docToolchain/docToolchain/issues/new'
+    issuesBaseUrl = 'https://api.github.com/repos/doctoolchain/doctoolchain/issues'
     //
     // the base url for code files in github (set to 'null' to hide the "Improve this doc" link)
     branch = System.getenv("DTC_PROJECT_BRANCH")?:'ng'
     gitRepoUrl = "https://github.com/doctoolchain/doctoolchain/edit/${branch}/src/docs"
+
+    rightColumnExtra = "training.html"
+
+    // define a custom search html
+    search = """<form id="searchForm" action="https://perplexity.ai" target="perplexity">
+        <input id="searchInput" aria-label="Search this site…" autocomplete="off" class="form-control td-search-input"
+               placeholder=" Search with perplexity" type="search" name="q">
+        </form>
+        <script>
+        document.getElementById('searchForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            var input = document.getElementById('searchInput');
+            var searchTerm = input.value.trim();
+            if (searchTerm !== '') {
+                input.value = searchTerm + ' site:doctoolchain.org ';
+            }
+            this.submit();
+            input.value="";
+        });
+    </script>
+    """
+
 
     /** end:microsite **/
 }
@@ -114,7 +139,7 @@ jbake.with {
     // possibility to configure additional asciidoctorj plugins used by jbake
     plugins = [ ]
 
-    // possibiltiy to configure additional asciidoctor attributes passed to the jbake task
+    // possibility to configure additional asciidoctor attributes passed to the jbake task
     asciidoctorAttributes = [ ]
 
     /** end:jbake **/
@@ -150,7 +175,7 @@ changelog.with {
 //*****************************************************************************************
 
 //tag::confluenceConfig[]
-//Configureation for publishToConfluence
+//Configuration for publishToConfluence
 
 confluence = [:]
 
@@ -188,14 +213,18 @@ confluence.with {
 
     inputHtmlFolder = ''
     // endpoint of the confluenceAPI (REST) to be used
-    // to verify the endpoint, add user/current and pate it into your browser
-    // you should get a json about your own user
-    api = 'https://[yourServer]/[context]/rest/api/'
+    api = 'https://[yourServer]'
 
-    //    Additionally, spaceKey, subpagesForSections, pagePrefix and pageSuffix can be globally defined here. The assignment in the input array has precedence
+    // requests per second for confluence API calls
+    rateLimit = 10
+
+    // Additionally, spaceKey, subpagesForSections, pagePrefix and pageSuffix can be globally defined here. The assignment in the input array has precedence
 
     // the key of the confluence space to write to
     spaceKey = 'asciidoc'
+
+    // if true, all pages will be created using the new editor v2
+    // enforceNewEditor = false
 
     // variable to determine how many layers of sub pages should be created
     subpagesForSections = 1
@@ -211,12 +240,12 @@ confluence.with {
     pageVersionComment = ''
 
     /*
-    WARNING: It is strongly recommended to store credentials securely instead of commiting plain text values to your git repository!!!
+    WARNING: It is strongly recommended to store credentials securely instead of committing plain text values to your git repository!!!
 
     Tool expects credentials that belong to an account which has the right permissions to to create and edit confluence pages in the given space.
     Credentials can be used in a form of:
-     - passed parameters when calling script (-PconfluenceUser=myUsername -PconfluencePass=myPassword) which can be fetched as a secrets on CI/CD or
-     - gradle variables set through gradle properties (uses the 'confluenceUser' and 'confluencePass' keys)
+    - passed parameters when calling script (-PconfluenceUser=myUsername -PconfluencePass=myPassword) which can be fetched as a secrets on CI/CD or
+    - gradle variables set through gradle properties (uses the 'confluenceUser' and 'confluencePass' keys)
     Often, same credentials are used for Jira & Confluence, in which case it is recommended to pass CLI parameters for both entities as
     -Pusername=myUser -Ppassword=myPassword
     - in case using bearer authentication set token value to the bearerToken
@@ -293,8 +322,11 @@ jira.with {
     // endpoint of the JiraAPI (REST) to be used
     api = 'https://your-jira-instance'
 
+    // requests per second for Jira API calls
+    rateLimit = 10
+
     /*
-    WARNING: It is strongly recommended to store credentials securely instead of commiting plain text values to your git repository!!!
+    WARNING: It is strongly recommended to store credentials securely instead of committing plain text values to your git repository!!!
 
     Tool expects credentials that belong to an account which has the right permissions to read the JIRA issues for a given project.
     Credentials can be used in a form of:
@@ -332,27 +364,20 @@ jira.with {
     List of requests to Jira API:
     These are basically JQL expressions bundled with a filename in which results will be saved.
     User can configure custom fields IDs and name those for column header,
-    i.e. customfield_10026:'Story Points' for Jira instance that has custom field with that name and will be saved in a coloumn named "Story Points"
+    i.e. customfield_10026:'Story Points' for Jira instance that has custom field with that name and will be saved in a column named "Story Points"
     */
-    requests = [
-        new JiraRequest(
+    exports = [
+        [
             filename:"File1_Done_issues",
             jql:"project='%jiraProject%' AND status='Done' ORDER BY duedate ASC",
             customfields: [customfield_10026:'Story Points']
-        ),
-        new JiraRequest(
+        ],
+        [
             filename:'CurrentSprint',
             jql:"project='%jiraProject%' AND Sprint in openSprints() ORDER BY priority DESC, duedate ASC",
             customfields: [customfield_10026:'Story Points']
-        ),
+        ]
     ]
-}
-
-@groovy.transform.Immutable
-class JiraRequest {
-    String filename  //filename (without extension) of the file in which JQL results will be saved. Extension will be determined automatically for Asciidoc or Excel file
-    String jql // Jira Query Language syntax
-    Map<String,String> customfields // map of customFieldId:displayName values for Jira fields which don't have default names, i.e. customfield_10026:StoryPoints
 }
 //end::jiraConfig[]
 

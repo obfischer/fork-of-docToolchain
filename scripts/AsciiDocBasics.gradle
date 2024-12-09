@@ -3,6 +3,7 @@
  */
 buildscript {
     repositories {
+        mavenCentral()
         maven {
             credentials {
                 username mavenUsername
@@ -11,29 +12,49 @@ buildscript {
             url mavenRepository
         }
     }
-
+    configurations.all {
+        resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+            if (details.requested.group == 'org.ysb33r.gradle' && details.requested.name == 'grolifant' && details.requested.version in ['0.12', '0.12.1']) {
+                details.useVersion '0.16.1'
+                details.because 'jcenter redirect'
+                System.out.println ">>>>>>>>> fix grolifant"
+            }
+            if (details.requested.group == 'org.codehaus.groovy.modules.http-builder' && details.requested.name == 'http-builder' && details.requested.version == '0.7.2') {
+                details.useVersion '0.7.1'
+                details.because 'jcenter redirect'
+                System.out.println ">>>>>>>>> fix http-builder"
+            }
+            if (details.requested.group == 'com.burgstaller' && details.requested.name == 'okhttp-digest') {
+               //changing the name:
+                details.useTarget group: 'io.github.rburgst', name: details.requested.name, version: '1.21'
+                System.out.println ">>>>>>>>> fix okhttp-digest"
+            }
+        }
+    }
     dependencies {
-        classpath libs.asciidoctor
-        classpath libs.asciidoctor.pdf
-        classpath libs.asciidoctor.gems
-        classpath libs.asciidoctor.slides
+        classpath (libs.asciidoctor)
+        classpath (libs.asciidoctor.pdf)
+        classpath (libs.asciidoctor.gems)
+        classpath(libs.asciidoctor.slides)
+        if (file("libs/org/docToolchain/core-${project.properties.dtc_version}.jar").exists()) {
+            classpath files("libs/org/docToolchain/core-${project.properties.dtc_version}.jar")
+        } else {
+            classpath("org.docToolchain:core")
+        }
     }
 }
 
 import org.asciidoctor.gradle.jvm.AbstractAsciidoctorTask
 import org.asciidoctor.gradle.jvm.AsciidoctorTask
 import org.asciidoctor.gradle.jvm.slides.AsciidoctorJRevealJSTask
+import org.docToolchain.configuration.ConfigBuilder
+
+import java.util.regex.Matcher
 
 apply plugin: org.asciidoctor.gradle.jvm.AsciidoctorJPlugin
 apply plugin: org.asciidoctor.gradle.jvm.pdf.AsciidoctorJPdfPlugin
 apply plugin: org.asciidoctor.gradle.jvm.gems.AsciidoctorGemSupportPlugin
 apply plugin: org.asciidoctor.gradle.jvm.slides.AsciidoctorRevealJSPlugin
-
-repositories {
-    ruby {
-        gems()
-    }
-}
 
 revealjs {
     version = '4.1.0'
@@ -57,20 +78,18 @@ if (docDir.startsWith('.')) {
 logger.info "docToolchain> docDir: ${docDir}"
 logger.info "docToolchain> mainConfigFile: ${mainConfigFile}"
 logger.info "docToolchain> projectDir: ${projectDir}"
-def configSlurper = new ConfigSlurper()
-def configFile = new File(docDir, mainConfigFile)
-if (configFile.exists()) {
-    //ok - nothing to do
-} else {
-    println "\n${color 'green', """Config file '${configFile.canonicalPath}' does not exist' """}"
+config = new ConfigBuilder(docDir, mainConfigFile)
+.prepareConfigFileIfNotExists({
+    def configFile = new File(docDir, mainConfigFile)
+    println "\n${color 'green', """Config file '${configFile.getCanonicalPath()}' does not exist' """}"
     def input = ant.input(message: "\n${color 'green', 'do you want me to create a default one for you?'}", validargs: 'y,n', addproperty: 'yesno')
     if (ant.yesno=="y") {
         configFile.write(new File("./template_config/Config.groovy").text)
     } else {
         throw new Exception("can't continue without a config file")
     }
-}
-config = configSlurper.parse(configFile.text)
+}).build()
+logger.info "docToolchain> config: ${config}"
 pdfThemeDir = config.pdfThemeDir?config.pdfThemeDir:''
 if (pdfThemeDir.startsWith('.')) {
     pdfThemeDir = new File(docDir, pdfThemeDir).canonicalPath
@@ -78,6 +97,8 @@ if (pdfThemeDir.startsWith('.')) {
 logger.info "docToolchain> pdfThemeDir: ${pdfThemeDir}"
 inputPath = config.inputPath?config.inputPath:'.'
 logger.info "docToolchain> inputPath: ${inputPath}"
+useAntoraIntegration = config.useAntoraIntegration?config.useAntoraIntegration:false
+logger.info "docToolchain> Use Antora integration: ${useAntoraIntegration}"
 def props = project.gradle.startParameter.projectProperties
 logger.info("\nGradle project Properties [${props.size()}]:\n${props}\n==============================")
 
@@ -114,6 +135,20 @@ config.flatten().each {key, value ->
     }
 }
 
+// this is a hard dependency for the asciidoctor-gradle-plugin based generateDeck task
+def tasksToExecute = project.gradle.startParameter.taskNames
+if (tasksToExecute.contains('asciidoctorGemsPrepare') ||
+    tasksToExecute.contains('generateDeck') ||
+    // TODO this could help to allow ruby gems from remote, but it is not working yet
+    config.rubyExtensions && config.rubyExtensions.any { !it.endsWith('.rb')}
+) {
+    project.repositories {
+        ruby {
+            gems()
+        }
+    }
+}
+
 ext {
     srcDir  = "${docDir}/${inputPath}"
     if (config.outputPath.startsWith('/') || config.outputPath.matches('^[A-Za-z]:.*$')) {
@@ -132,7 +167,7 @@ asciidoctorj {
     version = '2.5.7'
     modules {
         diagram.use()
-        diagram.version '2.2.7'
+        diagram.version '2.3.1'
     }
     fatalWarnings ~/image to embed not found or not readable/
 
@@ -153,25 +188,56 @@ asciidoctorj {
         'projectRootDir'      : "${new File(docDir).canonicalPath}@"
     )
 
-    def failOnMissingImages = (findProperty("failOnMissingImages")?:config.failOnMissingImages)?:true
-    if(failOnMissingImages == true){
+    def failOnMissingImages = (findProperty("failOnMissingImages")?:config.failOnMissingImages)?:false
+    if(failOnMissingImages.toBoolean() == true){
         attributes(
             'data-uri': '',
         )
     }
 
     // Here we can add the code for extensions we write.
+    // be aware that the docToolchain config variable inside the extension is not available
+    def jiraBaseUrl
+
+    if(config.jira.api){
+        URL url = new URL(config.jira.api)
+        String portPart = url.port == -1 || url.port == url.defaultPort ? "" : ":${url.port}"
+        jiraBaseUrl = "${url.protocol}://${url.host}${portPart}"
+    }
+
     docExtensions {
-        block (name: "jira") {
+        inline_macro (name: "jira") {
             parent, target, attributes ->
-                options = [
+                def options = [
                     "type": ":link",
-                    "target": jiraRoot+"/browse/${target}".toString(),
+                    "target": "${jiraBaseUrl}/browse/${target}".toString(),
                     "id": "${target}"
                 ]
+                if(!jiraBaseUrl ){
+                    println(">>> WARN: No Jira API URL found in config, the Jira extension may not work as expected.")
+                }
 
                 // Create the link to the issue.
                 createPhraseNode(parent, "anchor", target, attributes, options).render()
+        }
+        // We need an extension to be able to convert Asciidoc if we are not in the context of Antora but we have
+        // enabled the Antora integration.
+        include_processor (filter: {it.contains("example\$")}) {
+            document, reader, target, attributes ->
+                def baseDir =  new File(reader.getDir()).parentFile
+                def rawContent = new File(reader.getFile()).text.replace("example\$", "${baseDir}/examples/")
+
+                Matcher matcher = (rawContent =~ /include::[^\[]+/)
+
+                if(matcher.find()) {
+                    def content = matcher.group().replace("example\$", "${baseDir}/examples/") + "[]"
+                    reader.pushInclude(
+                        content,
+                        target,
+                        target,
+                        1,
+                        attributes)
+                }
         }
     }
 }
@@ -214,14 +280,28 @@ tasks.withType(AbstractAsciidoctorTask) { docTask ->
     // good to see what the build is doing...
     logDocuments = true
 
-    //TODO: write docs
+    //TODO: write docs for this
     if (config.rubyExtensions) {
         config.rubyExtensions.each { extension ->
-            def root= new File(projectDir.canonicalPath)
-            def full= new File(new File(docDir,extension).canonicalPath)
-            def relPath = root.toPath().relativize( full.toPath() ).toFile()
-            requires += [relPath.toString()]
-            logger.info ("added required ruby extension '$full'")
+            if(extension.endsWith('.rb')) {
+                def root= new File(projectDir.canonicalPath)
+                def full = new File(new File(docDir,extension).canonicalPath)
+                def rootPath = root.toPath()
+                def fullPath = full.toPath()
+
+                def relPath
+                if (rootPath.root == fullPath.root) {
+                    relPath = rootPath.relativize(fullPath).toFile()
+                } else {
+                    // Use the full path as relative path is not possible
+                    relPath = fullPath.toFile()
+                }
+
+                asciidoctorj.requires += [relPath.toString()]
+                println ("added required ruby extension '$full'")
+            } else {
+                throw new IllegalArgumentException("Ruby extension '$extension' must end with '.rb'. Only local extensions are supported, yet.")
+            }
         }
     }
     // fix for #1150
@@ -258,7 +338,6 @@ task generateHTML (
     sources {
         sourceFilesHTML.each {
             include it.file
-            logger.info it.file
 
             File useFile = new File(srcDir, it.file)
             if (!useFile.exists()) {

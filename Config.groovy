@@ -1,11 +1,15 @@
 outputPath = 'build/docs'
 
+// If you want to use the Antora integration, set this to true.
+// This requires your project to be setup as Antora module.
+// You can use `downloadTemplate` task to bootstrap your project.
+//useAntoraIntegration = false
+
 // Path where the docToolchain will search for the input files.
 // This path is appended to the docDir property specified in gradle.properties
 // or in the command line, and therefore must be relative to it.
 
 inputPath = 'src/docs';
-
 
 inputFiles = [
         [file: 'manual_test_script.adoc',       formats: ['html','pdf']],
@@ -21,7 +25,7 @@ imageDirs = [
 
 // whether the build should fail when detecting broken image references
 // if this config is set to true all images will be embedded
-failOnMissingImages = true
+// failOnMissingImages = false
 
 taskInputsDirs = ["${inputPath}/images"]
 
@@ -36,7 +40,7 @@ jbake.with {
     // possibility to configure additional asciidoctorj plugins used by jbake
     plugins = [ ]
 
-    // possibiltiy to configure additional asciidoctor attributes passed to the jbake task
+    // possibility to configure additional asciidoctor attributes passed to the jbake task
     asciidoctorAttributes = [ ]
 }
 //end::jbakeConfig[]
@@ -69,7 +73,7 @@ changelog.with {
 //*****************************************************************************************
 
 //tag::confluenceConfig[]
-//Configureation for publishToConfluence
+//Configuration for publishToConfluence
 
 confluence = [:]
 
@@ -105,16 +109,19 @@ confluence.with {
     ]
 
     // endpoint of the confluenceAPI (REST) to be used
-    // verfiy that you got the correct endpoint by browsing to
-    // https://[yourServer]/[context]/rest/api/user/current
-    // you should get a valid json which describes your current user
-    // a working example is https://arc42-template.atlassian.net/wiki/rest/api/user/current
-    api = 'https://[yourServer]/[context]/rest/api/'
+    // https://[yourServer]
+    api = 'https://[yourServer]'
+
+    // requests per second for confluence API calls
+    rateLimit = 10
 
 //    Additionally, spaceKey, subpagesForSections, pagePrefix and pageSuffix can be globally defined here. The assignment in the input array has precedence
 
     // the key of the confluence space to write to
     spaceKey = 'asciidoc'
+
+    // if true, all pages will be created using the new editor v2
+    // enforceNewEditor = false
 
     // variable to determine how many layers of sub pages should be created
     subpagesForSections = 1
@@ -127,7 +134,7 @@ confluence.with {
     pageSuffix = ''
 
     /*
-    WARNING: It is strongly recommended to store credentials securely instead of commiting plain text values to your git repository!!!
+    WARNING: It is strongly recommended to store credentials securely instead of committing plain text values to your git repository!!!
 
     Tool expects credentials that belong to an account which has the right permissions to to create and edit confluence pages in the given space.
     Credentials can be used in a form of:
@@ -182,6 +189,7 @@ confluence.with {
 // -  glossaryTypes: if set and glossary is exported, used to filter for certain types.
 //    Not set or empty list will cause no filtered glossary.
 // -  diagramAttributes: if set, the diagram attributes are exported and formatted as specified
+// -  imageFormat: if set, the image format is used for the export of diagrams. Default is '.png'.
 
 exportEA.with {
 // OPTIONAL: Set the connection to a certain project or comment it out to use all project files inside the src folder or its child folder.
@@ -202,6 +210,8 @@ exportEA.with {
 // OPTIONAL: Additional files will be exported containing diagram attributes in the given asciidoc format
 // diagramAttributes = "Modified: %DIAGRAM_AUTHOR%, %DIAGRAM_MODIFIED%, %DIAGRAM_NAME%,
 // %DIAGRAM_GUID%, %DIAGRAM_CREATED%, %DIAGRAM_NOTES%, %DIAGRAM_DIAGRAM_TYPE%, %DIAGRAM_VERSION%"
+// OPTIONAL: format of the exported diagrams. Defaults to '.png' if the parameter is not provided.
+// imageFormat = ".svg"
 }
 //end::exportEAConfig[]
 
@@ -234,8 +244,11 @@ jira.with {
     // endpoint of the JiraAPI (REST) to be used
     api = 'https://your-jira-instance'
 
+    // requests per second for Jira API calls
+    rateLimit = 10
+
     /*
-    WARNING: It is strongly recommended to store credentials securely instead of commiting plain text values to your git repository!!!
+    WARNING: It is strongly recommended to store credentials securely instead of committing plain text values to your git repository!!!
 
     Tool expects credentials that belong to an account which has the right permissions to read the JIRA issues for a given project.
     Credentials can be used in a form of:
@@ -273,27 +286,20 @@ jira.with {
     List of requests to Jira API:
     These are basically JQL expressions bundled with a filename in which results will be saved.
     User can configure custom fields IDs and name those for column header,
-    i.e. customfield_10026:'Story Points' for Jira instance that has custom field with that name and will be saved in a coloumn named "Story Points"
+    i.e. customfield_10026:'Story Points' for Jira instance that has custom field with that name and will be saved in a column named "Story Points"
     */
-    requests = [
-        new JiraRequest(
+    exports = [
+        [
             filename:"File1_Done_issues",
             jql:"project='%jiraProject%' AND status='Done' ORDER BY duedate ASC",
             customfields: [customfield_10026:'Story Points']
-        ),
-        new JiraRequest(
+        ],
+        [
             filename:'CurrentSprint',
             jql:"project='%jiraProject%' AND Sprint in openSprints() ORDER BY priority DESC, duedate ASC",
             customfields: [customfield_10026:'Story Points']
-        ),
+        ]
     ]
-}
-
-@groovy.transform.Immutable
-class JiraRequest {
-    String filename  //filename (without extension) of the file in which JQL results will be saved. Extension will be determined automatically for Asciidoc or Excel file
-    String jql // Jira Query Language syntax
-    Map<String,String> customfields // map of customFieldId:displayName values for Jira fields which don't have default names, i.e. customfield_10026:StoryPoints
 }
 //end::jiraConfig[]
 
@@ -402,3 +408,8 @@ openAI.with {
     //temperature = '0.3'
 }
 //end::openAIConfig[]
+
+// Configuration for pandoc options
+pandocOptions = [
+    '--toc'
+]

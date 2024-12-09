@@ -1,10 +1,22 @@
 outputPath = 'build'
 
+// If you want to use the Antora integration, set this to true.
+// This requires your project to be setup as Antora module.
+// You can use `downloadTemplate` task to bootstrap your project.
+//useAntoraIntegration = false
+
 // Path where the docToolchain will search for the input files.
 // This path is appended to the docDir property specified in gradle.properties
 // or in the command line, and therefore must be relative to it.
 
 inputPath = 'src/docs';
+
+// if you need to register custom Asciidoctor extensions, this is the right place
+// configure the name and path to your extension, relative to the root of your project
+// (relative to dtcw). For example: 'src/ruby/asciidoctor-lists.rb'.
+// this is the same as the `requires`-list of the asciidoctor gradle plugin. The extensions will be
+// registered for generateDeck, generateHtml, generatePdf and generateDocbook tasks, only.
+// rubyExtensions = []
 
 // the pdfThemeDir config in this file is outdated.
 // please check http://doctoolchain.org/docToolchain/v2.0.x/020_tutorial/030_generateHTML.html#_pdf_style for further details
@@ -67,8 +79,6 @@ microsite.with {
 
     // is your microsite deployed with a context path?
     contextPath = '/'
-    // configure a port on which your preview server will run
-    previewPort = 8042
     // the folder of a site definition (theme) relative to the docDir+inputPath
     //siteFolder = '../site'
 
@@ -123,8 +133,8 @@ microsite.with {
     // set a title to '-' in order to remove this menu entry.
     menu = [:]
 
+//tag::additionalConverters[]
 /**
-tag::additionalConverters[]
 
 if you need support for additional markup converters, you can configure them here
 you have three different types of script you can define:
@@ -138,13 +148,13 @@ you have three different types of script you can define:
 `dtcw:rstToHtml.py` is an internal script to convert restructuredText.
 Needs `python3` and `docutils` installed.
 
-end::additionalConverters[]
 **/
     additionalConverters = [
         //'.one': [command: 'println "test"+file.canonicalPath', type: 'groovy'],
         //'.two': [command: 'scripts/convert-md.groovy', type: 'groovyFile'],
         //'.rst': [command: 'dtcw:rstToHtml.py', type: 'bash'],
     ]
+//end::additionalConverters[]
 
     // if you prefer another convention regarding the automatic generation
     // of jBake headers, you can configure a script to modify them here
@@ -161,12 +171,14 @@ end::additionalConverters[]
     """.stripIndent()
     **/
 
-    // if you need to register custom Asciidoctor extensions, this is the right place
-    // configure the name and path to your extension, relative to the root of your project
-    // (relative to dtcw). For example: 'src/ruby/asciidoctor-lists.rb'.
-    // this is the same as the `requires`-list of the asciidoctor gradle plugin
-
-    // rubyExtensions = []
+    // define a custom search html
+    /** 
+    search = """        <form action="${content.rootpath}search.html">
+        <input aria-label="Search this site…" autocomplete="off" class="form-control td-search-input"
+               placeholder=" Search this site…" type="search" name="q">
+        </form>
+    """
+    **/
 }
 
 //*****************************************************************************************
@@ -223,7 +235,9 @@ to configure a different parent page for each file.
 
 The following four keys can also be used in the global section below
 
-- `spaceKey` (optional): page specific variable for the key of the confluence space to write to
+- `spaceKey`: page specific variable for the key of the confluence space to write to
+              case sensitive! If the case is not correct, it can be that new page will be
+              created but can't be updated in the next run.
 - `subpagesForSections` (optional): The number of nested sub-pages to create. Default is '1'.
                                     '0' means creating all on one page.
                                     The following migration for removed configuration can be used.
@@ -246,16 +260,30 @@ confluence.with {
     ]
 
     // endpoint of the confluenceAPI (REST) to be used
-    // verfiy that you got the correct endpoint by browsing to
-    // https://[yourServer]/[context]/rest/api/user/current
-    // you should get a valid json which describes your current user
-    // a working example is https://arc42-template.atlassian.net/wiki/rest/api/user/current
-    api = 'https://[yourServer]/[context]/rest/api/'
+    // if you use Confluence Cloud, you can set this value to
+    // https://[yourServer]
+    // a working example is https://arc42-template.atlassian.net
+    // if you use Confluence Server, you may need to set a context:
+    // https://[yourServer]/[context]
+    // a working example is https://arc42-template.atlassian.net/wiki
+    api = 'https://[yourServer]/[context]'
+
+    // requests per second for confluence API calls
+    rateLimit = 10
+
+    // if true API V1 only will be used. Default is true.
+    // useV1Api = true
+
+    // if true, the new editor v2 will be used. Default is false.
+    // enforceNewEditor = false
 
     //    Additionally, spaceKey, subpagesForSections, pagePrefix and pageSuffix can be globally defined here. The assignment in the input array has precedence
 
     // the key of the confluence space to write to
     spaceKey = 'asciidoc'
+
+    // if true, all pages will be created using the new editor v2
+    // enforceNewEditor = false
 
     // variable to determine how many layers of sub pages should be created
     subpagesForSections = 1
@@ -360,6 +388,9 @@ jira.with {
     // endpoint of the JiraAPI (REST) to be used
     api = 'https://your-jira-instance'
 
+    // requests per second for jira API calls
+    rateLimit = 10
+
     /*
     WARNING: It is strongly recommended to store credentials securely instead of commiting plain text values to your git repository!!!
 
@@ -401,25 +432,18 @@ jira.with {
     User can configure custom fields IDs and name those for column header,
     i.e. customfield_10026:'Story Points' for Jira instance that has custom field with that name and will be saved in a coloumn named "Story Points"
     */
-    requests = [
-        new JiraRequest(
+    exports = [
+        [
             filename:"File1_Done_issues",
             jql:"project='%jiraProject%' AND status='Done' ORDER BY duedate ASC",
             customfields: [customfield_10026:'Story Points']
-        ),
-        new JiraRequest(
+        ],
+        [
             filename:'CurrentSprint',
             jql:"project='%jiraProject%' AND Sprint in openSprints() ORDER BY priority DESC, duedate ASC",
             customfields: [customfield_10026:'Story Points']
-        ),
+        ],
     ]
-}
-
-@groovy.transform.Immutable
-class JiraRequest {
-    String filename  //filename (without extension) of the file in which JQL results will be saved. Extension will be determined automatically for Asciidoc or Excel file
-    String jql // Jira Query Language syntax
-    Map<String,String> customfields // map of customFieldId:displayName values for Jira fields which don't have default names, i.e. customfield_10026:StoryPoints
 }
 //end::jiraConfig[]
 
